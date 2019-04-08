@@ -1,0 +1,114 @@
+---
+title: "Motion Tracking"
+author: "Nanna Bernth"
+date: "4 apr 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+setwd("C:/Users/nanna/OneDrive - Aarhus universitet/4. Semester/Models of Perception and Action/Modelsofperception/Exercise Homework/21")
+getwd()
+
+
+library(pacman)
+p_load(readr, tidyverse, reshape, mousetrap, mousetrack)
+
+
+data <- list.files(pattern = "*.txt") %>% 
+  lapply(read.delim, stringsAsFactors=F, sep=",", header=F) %>% 
+   bind_rows
+
+data <- rename(data, c(V1 = "sample", V2 = "condition", V3 = "pos_x", V4 = "pos_y"))
+
+```
+
+Mouse-tracking: like a histogram, taking a course without touching the pillars
+
+Intention with experiment: 
+	• Gauge the repetition effect
+	• If deviation from the pattern (difference in height) --> longer RT
+	• Remapping effect
+	• If many tall pillars, and one low in the middle --> you would probably go a lot higher on the low one as you're used to the taller ones
+		○ Cordula found this effect!
+		○ Repetition --> it's cost-effective to just keep the previous pattern
+	• If many low pillers, and one tall one in the middle --> you overestimate the sufficient movement
+		○ The tall pillar is an obstacle 
+The data is more mixed in this effect though
+
+```{r}
+
+#Make a table with a single trial (15)
+single <- read.delim("21_15.txt", sep=",", header=F)
+single <- rename(single, c(V1 = "sample", V2 = "condition", V3 = "pos_x", V4 = "pos_y"))
+
+#Plot the data
+ggplot(data = single, aes(x = pos_x, y = pos_y)) + geom_point(color = rainbow(2268), size = 0.4) 
+
+```
+
+```{r}
+
+#Find minimum value in pos x and pos y
+miny = min(single$pos_y)
+minx = min(single$pos_x)
+
+#Make a new column where the minimun value is subtracted the original values
+single$pos_y0 <- single$pos_y - miny
+single$pos_x0 <- single$pos_x - minx
+
+#Plot the new data
+ggplot(data = single, aes(x = pos_x0, y = pos_y0)) + geom_point(color = rainbow(2268), size = 0.4) 
+
+```
+
+```{r + Travel distance}
+
+traveldist <- sum(sqrt(diff(single$pos_x0)^2 + diff(single$pos_y0)^2))
+traveldist
+
+#5523.131 the distance from start to end of trial the 'mouse' travels.
+
+```
+
+```{r + time column}
+
+#Adding a time variable (+ 0.0025)
+single$time <- (single$sample-1) * 0.0025
+
+```
+
+
+```{r}
+
+#Velocity
+single$velocity_y <- (single$pos_y0 - lag(single$pos_y0, 1)) / 0.0025
+
+#Acceleration
+single$acceleration_y <- (single$velocity_y - lag(single$velocity_y, 1)) / 0.0025
+
+
+
+#Plot
+ggplot(data = single, aes(x = time, y = acceleration_y)) + geom_point(color = rainbow(2268), size = 0.4)
+
+
+ggplot(data = single, aes(x = time, y = velocity_y)) + geom_point(color = rainbow(2268), size = 0.4)
+
+
+```
+
+
+```{r}
+
+p_load(rootSolve)
+
+zero <- as.data.frame(uniroot.all(approxfun(single$time, single$acceleration_y), interval = range(single$time)))
+zero
+
+```
+
+
+
+
